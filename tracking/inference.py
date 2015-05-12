@@ -118,12 +118,12 @@ class ExactInference(InferenceModule):
     allPossible = util.Counter()
     for p in self.legalPositions:
       trueDistance = util.manhattanDistance(p, pacmanPosition)
-      if emissionModel[trueDistance] > 0: allPossible[p] = 1.0
+      if emissionModel[trueDistance] > 0:
+          allPossible[p] = self.beliefs[p] * emissionModel[trueDistance]
     allPossible.normalize()
-        
     "*** YOUR CODE HERE ***"
     self.beliefs = allPossible
-    
+
   def elapseTime(self, gameState):
     """
     Update self.beliefs in response to a time step passing from the current state.
@@ -145,6 +145,7 @@ class ExactInference(InferenceModule):
     newPosDist is a util.Counter object, where for each position p in self.legalPositions,
     
     newPostDist[p] = Pr( ghost is at position p at time t + 1 | ghost is at position oldPos at time t )
+
 
     (and also given Pacman's current position).  You may also find it useful to loop over key, value pairs
     in newPosDist, like:
@@ -168,6 +169,13 @@ class ExactInference(InferenceModule):
     """
     
     "*** YOUR CODE HERE ***"
+    nBelief = util.Counter()
+    for oldPos in self.legalPositions:
+        newPosDist = self.getPositionDistribution(self.setGhostPosition(gameState, oldPos))
+        for newPos, p in newPosDist.items():
+            nBelief[newPos] += self.beliefs[oldPos]*p
+    self.beliefs = nBelief
+    self.beliefs.normalize()
 
   def getBeliefDistribution(self):
     return self.beliefs
