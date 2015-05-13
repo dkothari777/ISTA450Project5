@@ -14,11 +14,11 @@ import inference
 
 class BustersAgent:
   "An agent that tracks and displays its beliefs about ghost positions."
-  
+
   def __init__( self, index = 0, inference = "ExactInference", ghostAgents = None ):
     inferenceType = util.lookup(inference, globals())
     self.inferenceModules = [inferenceType(a) for a in ghostAgents]
-    
+
   def registerInitialState(self, gameState):
     "Initializes beliefs and inference modules"
     import __main__
@@ -26,7 +26,7 @@ class BustersAgent:
     for inference in self.inferenceModules: inference.initialize(gameState)
     self.ghostBeliefs = [inf.getBeliefDistribution() for inf in self.inferenceModules]
     self.firstMove = True
-    
+
   def observationFunction(self, gameState):
     "Removes the ghost states from the gameState"
     agents = gameState.data.agentStates
@@ -49,14 +49,14 @@ class BustersAgent:
 
 class BustersKeyboardAgent(BustersAgent, KeyboardAgent):
   "An agent controlled by the keyboard that displays beliefs about ghost positions."
-  
+
   def __init__(self, index = 0, inference = "ExactInference", ghostAgents = None):
     KeyboardAgent.__init__(self, index)
     BustersAgent.__init__(self, index, inference, ghostAgents)
-    
+
   def getAction(self, gameState):
     return BustersAgent.getAction(self, gameState)
-    
+
   def chooseAction(self, gameState):
     return KeyboardAgent.getAction(self, gameState)
 
@@ -66,24 +66,24 @@ from game import Directions
 
 class GreedyBustersAgent(BustersAgent):
   "An agent that charges the closest ghost."
-  
+
   def registerInitialState(self, gameState):
     "Pre-computes the distance between every two points."
     BustersAgent.registerInitialState(self, gameState)
     self.distancer = Distancer(gameState.data.layout, False)
-    
+
   def chooseAction(self, gameState):
     """
-    First computes the most likely position of each ghost that 
-    has not yet been captured, then chooses an action that brings 
+    First computes the most likely position of each ghost that
+    has not yet been captured, then chooses an action that brings
     Pacman closer to the closest ghost (in maze distance!).
-    
+
     To find the maze distance between any two positions, use:
     self.distancer.getDistance(pos1, pos2)
-    
+
     To find the successor position of a position after an action:
     successorPosition = Actions.getSuccessor(position, action)
-    
+
     livingGhostPositionDistributions, defined below, is a list of
     util.Counter objects equal to the position belief distributions
     for each of the ghosts that are still alive.  It is defined based
@@ -99,7 +99,7 @@ class GreedyBustersAgent(BustersAgent):
          of the ghosts (including ghosts that are not alive).  The
          indices into this list should be 1 less than indices into the
          gameState.getLivingGhosts() list.
-     
+
     You may remove Directions.STOP from the list of available actions.
     """
     pacmanPosition = gameState.getPacmanPosition()
@@ -109,5 +109,46 @@ class GreedyBustersAgent(BustersAgent):
                                         in enumerate(self.ghostBeliefs)
                                         if livingGhosts[i+1]]
     "*** YOUR CODE HERE ***"
-    print "pacmanPosition: " + str(pacmanPosition), "legalActions: " + str(legal), "livingGhosts: " + str(livingGhosts), "livingGhostPositionDistributions: " + livingGhostPositionDistributions
-    util.raiseNotDefined()
+    # print "pacmanPosition: " + str(pacmanPosition), "\nlegalActions: " + str(legal), "\nlivingGhosts: " + str(livingGhosts), "\nlivingGhostPositionDistributions: " + str(livingGhostPositionDistributions)
+    # print "livingGhosts Before: " + str(livingGhosts) + "\n"
+    # Get rid of pacman and dead ghosts
+    for i in range(len(livingGhosts) - 1, -1, -1): # range from Stack Overflow
+        if not livingGhosts[i]:
+            del livingGhosts[i]
+
+    ghostPos = [0] * len(livingGhosts)
+    # print "livingGhosts After: " + str(livingGhosts) + "\n"
+    for i, ghost in enumerate(livingGhosts):
+    #   print "i = " + str(i)
+    #   print "dist length = " + str(len(livingGhostPositionDistributions))
+      maxP = 0
+      if ghost:
+        # print "ghost " + str(i) + " is at " + str(livingGhostPositionDistributions[i])
+        livDist = livingGhostPositionDistributions[i]
+        # get the most likely position of each ghost based on p for probability
+        for pos, p in livDist.items():
+          if p >= maxP:
+            # print "position and prob: " + str(pos) + ", " + str(p)
+            ghostPos[i] = pos
+            maxP = p
+
+    closest = (-1,-1)
+    dist = 999
+    # print "ghostPos: " + str(ghostPos) + "\n"
+    for pos in ghostPos:
+      if pos != 0:
+        # print "Distance = " + str(self.distancer.getDistance(pacmanPosition, pos)) + "\n"
+        # pick the ghost closest to pacman
+        temp = self.distancer.getDistance(pacmanPosition, pos)
+        if temp <= dist:
+          dist = temp
+          closest = pos
+
+    # pick a legal move to get pacman closer to the closest ghost
+    for move in legal:
+      successorPosition = Actions.getSuccessor(pacmanPosition, move)
+      if self.distancer.getDistance(successorPosition, closest) < dist:
+        return move
+
+    return Directions.STOP
+    #util.raiseNotDefined()
